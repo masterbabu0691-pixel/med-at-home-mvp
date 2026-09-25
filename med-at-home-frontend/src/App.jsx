@@ -3,24 +3,25 @@ import { Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import axios from 'axios';
 import './App.css';
 
-// We still need the Service ID since we haven't built a dynamic service fetcher yet
+// 1. Define the dynamic URL for Production (Vercel) vs Local Development
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+
 const TEST_SERVICE_ID = 'a688d7fa-4358-4b8f-b4f3-470993f0c392'; 
 
 // --- LOGIN SCREEN ---
 function Login({ setAuthUser }) {
   const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('password123'); // Pre-filled to save you time testing
+  const [password, setPassword] = useState('password123');
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
-      const response = await axios.post('import.meta.env.VITE_API_URL || 'http://localhost:5000'', { email, password });
+      const response = await axios.post(`${API_BASE_URL}/api/auth/login`, { email, password });
       const user = response.data.user;
       
-      setAuthUser(user); // Save logged-in user to memory
+      setAuthUser(user);
       
-      // Role-Based Routing!
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'provider') navigate('/provider');
       else navigate('/');
@@ -47,11 +48,6 @@ function Login({ setAuthUser }) {
           Sign In
         </button>
       </form>
-      
-      <div style={{ marginTop: '30px', fontSize: '14px', color: '#666' }}>
-        <p><strong>Test Accounts:</strong></p>
-        <p>admin@medathome.com | provider@medathome.com | patient@medathome.com</p>
-      </div>
     </div>
   );
 }
@@ -67,8 +63,8 @@ function CustomerApp({ authUser }) {
   const confirmBooking = async () => {
     setLoading(true);
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/bookings/create`, {
-        customer_id: authUser.id, // 👈 Using the dynamically logged-in ID!
+      const response = await axios.post(`${API_BASE_URL}/api/bookings/create`, {
+        customer_id: authUser.id,
         service_id: selectedService.id,
         scheduled_time: new Date(Date.now() + 86400000).toISOString(),
         address: "Karelibaug, Vadodara",
@@ -136,8 +132,8 @@ function ProviderApp({ authUser }) {
 
   const acceptJob = async () => {
     try {
-      const response = await axios.post(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/accept`, {
-        provider_id: authUser.id // 👈 Using the dynamically logged-in ID!
+      const response = await axios.post(`${API_BASE_URL}/api/bookings/${bookingId}/accept`, {
+        provider_id: authUser.id
       });
       setFinancials(response.data.data.financials);
       setJobStatus('accepted');
@@ -148,8 +144,8 @@ function ProviderApp({ authUser }) {
 
   const completeJob = async () => {
     try {
-      await axios.patch(`${import.meta.env.VITE_API_URL || 'http://localhost:5000'}/api/bookings/${bookingId}/status`, {
-        provider_id: authUser.id, // 👈 Using the dynamically logged-in ID!
+      await axios.patch(`${API_BASE_URL}/api/bookings/${bookingId}/status`, {
+        provider_id: authUser.id,
         new_status: 'completed',
         completion_notes: 'Patient attended. Vitals normal.'
       });
@@ -200,7 +196,7 @@ function AdminApp({ authUser }) {
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const response = await axios.get(import.meta.env.VITE_API_URL || 'http://localhost:5000/api/admin/dashboard');
+        const response = await axios.get(`${API_BASE_URL}/api/admin/dashboard`);
         setDashboardData(response.data.data);
       } catch (error) {
         console.error("Dashboard Error", error);
@@ -233,12 +229,10 @@ function AdminApp({ authUser }) {
 
 // --- MAIN ROUTER ---
 function App() {
-  const [authUser, setAuthUser] = useState(null); // Stores the logged-in user
+  const [authUser, setAuthUser] = useState(null); 
 
   return (
     <div style={{ fontFamily: 'Arial, sans-serif', maxWidth: '480px', margin: '0 auto', border: '1px solid #ddd', minHeight: '100vh' }}>
-      
-      {/* Top Navigation */}
       {authUser && (
         <nav style={{ background: '#000', padding: '10px', display: 'flex', justifyContent: 'space-between', color: 'white' }}>
           <span style={{ fontSize: '14px', fontWeight: 'bold' }}>Med At Home</span>
@@ -251,8 +245,6 @@ function App() {
         <Route path="/" element={<CustomerApp authUser={authUser} />} />
         <Route path="/provider" element={<ProviderApp authUser={authUser} />} />
         <Route path="/admin" element={<AdminApp authUser={authUser} />} />
-        
-        {/* If user types random URL, send them to login */}
         <Route path="*" element={<Navigate to="/login" />} />
       </Routes>
     </div>
